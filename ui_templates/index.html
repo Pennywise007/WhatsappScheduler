@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Scheduler</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #25D366;
+            --secondary-color: #128C7E;
+            --accent-color: #34B7F1;
+            --danger-color: #FF6B6B;
+            --success-color: #51CF66;
+            --warning-color: #FFD43B;
+            --dark-color: #2C3E50;
+            --light-color: #F8F9FA;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            padding: 1.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 50px;
+            padding: 15px 40px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(37, 211, 102, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, var(--danger-color), #FF5252);
+            border: none;
+            border-radius: 25px;
+            padding: 10px 25px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, var(--accent-color), #2196F3);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control, .form-select {
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+            padding: 15px 20px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.3rem rgba(37, 211, 102, 0.25);
+            background: white;
+        }
+
+        .task-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 6px solid var(--primary-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .task-item:hover::before {
+            transform: scaleX(1);
+        }
+
+        .task-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+        }
+
+        .status-badge {
+            border-radius: 25px;
+            padding: 8px 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .qr-section {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .qr-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            font-weight: 600;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(45deg, var(--success-color), #40C057);
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, var(--danger-color), #FF5252);
+        }
+
+        .notification.info {
+            background: linear-gradient(45deg, var(--accent-color), #2196F3);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .stats-number {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .floating-action-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .floating-action-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(37, 211, 102, 0.6);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+            transform-origin: 50% 50%;
+        }
+
+        .chat-preview {
+            background: rgba(37, 211, 102, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 10px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .time-display {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #000000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="main-container p-5 animate__animated animate__fadeIn">
+            <div class="text-center mb-5">
+                <h1 class="display-4 fw-bold text-primary animate__animated animate__fadeInDown">
+                    <i class="fab fa-whatsapp me-3"></i>Программа для батяни
+                </h1>
+                <p class="lead text-muted animate__animated animate__fadeInUp animate__delay-1s">
+                    Автоматическая отправка сообщений в WhatsApp с умными настройками
+                </p>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number" id="activeTasks">0</div>
+                        <div>Активных задач</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number" id="totalMessages">0</div>
+                        <div>Отправлено сообщений</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number" id="successRate">100%</div>
+                        <div>Успешность</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <div class="stats-number time-display" id="currentTime">--:--</div>
+                        <div>Текущее время</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code Section -->
+            <div class="qr-section mb-4 animate__animated animate__fadeIn" id="qrSection" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0 text-white">
+                            <i class="fas fa-qrcode me-2"></i>Авторизация WhatsApp
+                        </h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="qrStatus">
+                            <div class="alert alert-warning mb-0">
+                                <i class="fas fa-qrcode me-2"></i>
+                                Отсканируйте QR код для авторизации в WhatsApp
+                            </div>
+                        </div>
+                        <div id="qrCode" class="mt-3 text-center"></div>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-light" onclick="checkQRStatus()">
+                                <i class="fas fa-sync-alt me-2"></i>Проверить статус
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Form -->
+            <div class="card mb-4 animate__animated animate__fadeInUp">
+                <div class="card-header">
+                    <h5 class="mb-0 text-white"><i class="fas fa-plus-circle me-2"></i>Новая задача</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form id="scheduleForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="chatName" class="form-label fw-bold">
+                                    <i class="fas fa-comments me-2"></i>Название чата
+                                </label>
+                                <input type="text" class="form-control" id="chatName" required 
+                                       placeholder="Введите название чата">
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Введите название чата или контакта
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="message" class="form-label fw-bold">
+                                    <i class="fas fa-envelope me-2"></i>Сообщение
+                                </label>
+                                <textarea class="form-control" id="message" rows="3" required 
+                                          placeholder="Введите текст сообщения"></textarea>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Текст сообщения для отправки
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="interval" class="form-label fw-bold">
+                                    <i class="fas fa-clock me-2"></i>Интервал (минуты)
+                                </label>
+                                <input type="number" class="form-control" id="interval" min="1" value="60" required>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Как часто отправлять сообщения
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="randomDelay" class="form-label fw-bold">
+                                    <i class="fas fa-random me-2"></i>Случайная задержка (минуты)
+                                </label>
+                                <input type="number" class="form-control" id="randomDelay" min="0" value="2">
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Добавляет случайную задержку от 0 до указанного времени
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="startTime" class="form-label fw-bold">
+                                    <i class="fas fa-play me-2"></i>Время начала
+                                </label>
+                                <input type="datetime-local" class="form-control" id="startTime" required>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Когда начать отправку
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="endTime" class="form-label fw-bold">
+                                    <i class="fas fa-stop me-2"></i>Время окончания
+                                </label>
+                                <input type="datetime-local" class="form-control" id="endTime" required>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Когда прекратить отправку
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-play me-2"></i>Запустить задачу
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Current Task Display -->
+            <div class="card mb-4 animate__animated animate__fadeInUp" id="currentTaskCard" style="display: none;">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-play-circle me-2"></i>Текущая задача</h5>
+                </div>
+                <div class="card-body p-4" id="currentTaskBody">
+                    <!-- Содержимое текущей задачи будет загружено динамически -->
+                </div>
+            </div>
+
+            <!-- Test Message Section -->
+            <div class="card mb-4 animate__animated animate__fadeInUp">
+                <div class="card-header">
+                    <h5 class="mb-0 text-white"><i class="fas fa-paper-plane me-2"></i>Тестовая отправка</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="testChatName" class="form-label fw-bold">
+                                <i class="fas fa-comments me-2"></i>Название чата
+                            </label>
+                            <input type="text" class="form-control" id="testChatName" 
+                                   placeholder="Введите название чата для теста">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="testMessage" class="form-label fw-bold">
+                                <i class="fas fa-envelope me-2"></i>Тестовое сообщение
+                            </label>
+                            <input type="text" class="form-control" id="testMessage" 
+                                   placeholder="Введите тестовое сообщение">
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <button type="button" class="btn btn-info" onclick="sendTestMessage()">
+                            <i class="fas fa-paper-plane me-2"></i>Отправить тест
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="floating-action-btn" onclick="scrollToTop()" id="scrollTopBtn" style="display: none;">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Модальное окно для замены задачи -->
+    <div class="modal fade" id="replaceTaskModal" tabindex="-1" aria-labelledby="replaceTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="replaceTaskModalLabel">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>Замена задачи
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>У вас уже есть активная задача. Хотите заменить её на новую?</p>
+                    <div id="existingTaskInfo" class="alert alert-info">
+                        <!-- Информация о существующей задаче -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>Отмена
+                    </button>
+                    <button type="button" class="btn btn-warning" id="confirmReplaceBtn">
+                        <i class="fas fa-sync-alt me-2"></i>Заменить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Функция форматирования даты в дд.мм.гггг чч:мм формате
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+
+        // Функция форматирования даты для datetime-local input
+        function formatLocalDateTime(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        // Установка времени по умолчанию и загрузка сохраненных данных
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            
+            // Загружаем сохраненные данные
+            const savedChatName = localStorage.getItem('savedChatName') || '';
+            const savedMessage = localStorage.getItem('savedMessage') || '';
+            const savedInterval = localStorage.getItem('savedInterval') || '60';
+            const savedRandomDelay = localStorage.getItem('savedRandomDelay') || '2';
+            
+            // Заполняем поля сохраненными данными
+            document.getElementById('chatName').value = savedChatName;
+            document.getElementById('message').value = savedMessage;
+            document.getElementById('interval').value = savedInterval;
+            document.getElementById('randomDelay').value = savedRandomDelay;
+            
+            // Обновляем только даты
+            document.getElementById('startTime').value = formatLocalDateTime(now);
+            document.getElementById('endTime').value = formatLocalDateTime(new Date(now.getTime() + 60 * 60 * 1000)); // +1 час
+            
+            loadCurrentTask();
+            checkQRStatus(); // Проверяем статус только при загрузке
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            // Scroll to top button
+            window.addEventListener('scroll', function() {
+                const scrollTopBtn = document.getElementById('scrollTopBtn');
+                if (window.pageYOffset > 300) {
+                    scrollTopBtn.style.display = 'block';
+                } else {
+                    scrollTopBtn.style.display = 'none';
+                }
+            });
+        });
+
+        // Обновление текущего времени
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Прокрутка наверх
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Показ уведомлений
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                ${message}
+            `;
+            container.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => container.removeChild(notification), 300);
+            }, 3000);
+        }
+
+        // Отправка формы
+        document.getElementById('scheduleForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<span class="loading me-2"></span>Добавление...';
+            submitBtn.disabled = true;
+
+            const formData = {
+                chat_name: document.getElementById('chatName').value,
+                message: document.getElementById('message').value,
+                interval: parseInt(document.getElementById('interval').value),
+                random_delay: parseInt(document.getElementById('randomDelay').value),
+                start_time: new Date(document.getElementById('startTime').value + ":00").toISOString(),
+                end_time: new Date(document.getElementById('endTime').value + ":00").toISOString()
+            };
+
+            // Сохраняем данные в localStorage (кроме дат)
+            localStorage.setItem('savedChatName', formData.chat_name);
+            localStorage.setItem('savedMessage', formData.message);
+            localStorage.setItem('savedInterval', formData.interval.toString());
+            localStorage.setItem('savedRandomDelay', formData.random_delay.toString());
+
+            fetch('/schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    if (data.error === 'Уже есть активная задача') {
+                        // Показываем модальное окно для замены
+                        showReplaceTaskModal(data.existing_task, formData);
+                    } else {
+                        showNotification('Ошибка: ' + data.error, 'error');
+                    }
+                } else if (data.message) {
+                    // Успешный ответ
+                    showNotification(data.message, 'success');
+                    loadCurrentTask();
+                    setUpdateInterval(); // Переустанавливаем интервал обновления
+                } else {
+                    // Неизвестный формат ответа
+                    showNotification('Неизвестный формат ответа от сервера', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Ошибка при добавлении задачи', 'error');
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            });
+        });
+
+        // Функция показа модального окна для замены задачи
+        function showReplaceTaskModal(existingTask, newTaskData) {
+            const modal = new bootstrap.Modal(document.getElementById('replaceTaskModal'));
+            const existingTaskInfo = document.getElementById('existingTaskInfo');
+            
+            existingTaskInfo.innerHTML = `
+                <strong>Текущая задача:</strong><br>
+                Чат: ${existingTask.chat_name}<br>
+                Интервал: ${existingTask.interval} мин<br>
+                Время: ${formatDate(existingTask.start_time)} - ${formatDate(existingTask.end_time)}
+            `;
+            
+            // Обработчик кнопки замены
+            document.getElementById('confirmReplaceBtn').onclick = function() {
+                replaceTask(newTaskData);
+                modal.hide();
+            };
+            
+            modal.show();
+        }
+
+        // Функция замены задачи
+        function replaceTask(taskData) {
+            fetch('/replace-task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(taskData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showNotification('Ошибка: ' + data.error, 'error');
+                } else if (data.message) {
+                    showNotification(data.message, 'success');
+                    loadCurrentTask();
+                    setUpdateInterval(); // Переустанавливаем интервал обновления
+                } else {
+                    showNotification('Неизвестный формат ответа от сервера', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Ошибка при замене задачи', 'error');
+            });
+        }
+
+
+
+        // Остановка задачи
+        function stopTask(taskId) {
+            if (confirm('Вы уверены, что хотите остановить эту задачу?')) {
+                fetch(`/stop/${taskId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showNotification('Ошибка: ' + data.error, 'error');
+                    } else {
+                        showNotification('Задача остановлена!', 'success');
+                        loadCurrentTask(); // Немедленно обновляем список задач
+                        setUpdateInterval(); // Переустанавливаем интервал обновления
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Ошибка при остановке задачи', 'error');
+                });
+            }
+        }
+
+        // Отправка тестового сообщения
+        function sendTestMessage() {
+            const chatName = document.getElementById('testChatName').value;
+            const message = document.getElementById('testMessage').value;
+            
+            if (!chatName || !message) {
+                showNotification('Пожалуйста, заполните все поля', 'error');
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="sendTestMessage()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading me-2"></span>Отправка...';
+            btn.disabled = true;
+
+            fetch('/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    chat_name: chatName,
+                    message: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Создаем детальное уведомление об успехе
+                    const successMessage = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-check-circle me-2"></i>Сообщение отправлено успешно!
+                            </h6>
+                            <hr>
+                            <p class="mb-1"><strong>Чат:</strong> ${data.chat}</p>
+                            <p class="mb-1"><strong>Сообщение:</strong> ${data.text}</p>
+                            <p class="mb-0"><small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>${new Date().toLocaleTimeString('ru-RU')}
+                            </small></p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    
+                    // Добавляем уведомление в начало контейнера
+                    const container = document.getElementById('notificationContainer');
+                    const notificationDiv = document.createElement('div');
+                    notificationDiv.innerHTML = successMessage;
+                    container.insertBefore(notificationDiv.firstElementChild, container.firstChild);
+                    
+                    // Очищаем поля формы
+                    document.getElementById('testChatName').value = '';
+                    document.getElementById('testMessage').value = '';
+                    
+                    // Показываем стандартное уведомление
+                    showNotification('Тестовое сообщение отправлено успешно!', 'success');
+                } else {
+                    // Создаем детальное уведомление об ошибке
+                    const errorMessage = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Ошибка отправки сообщения
+                            </h6>
+                            <hr>
+                            <p class="mb-1"><strong>Чат:</strong> ${chatName}</p>
+                            <p class="mb-1"><strong>Сообщение:</strong> ${message}</p>
+                            <p class="mb-1"><strong>Ошибка:</strong> ${data.error || data.message}</p>
+                            <p class="mb-0"><small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>${new Date().toLocaleTimeString('ru-RU')}
+                            </small></p>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    
+                    // Добавляем уведомление в начало контейнера
+                    const container = document.getElementById('notificationContainer');
+                    const notificationDiv = document.createElement('div');
+                    notificationDiv.innerHTML = errorMessage;
+                    container.insertBefore(notificationDiv.firstElementChild, container.firstChild);
+                    
+                    // Показываем стандартное уведомление
+                    showNotification('Ошибка отправки: ' + (data.error || data.message), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Создаем детальное уведомление об ошибке сети
+                const errorMessage = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Ошибка сети
+                        </h6>
+                        <hr>
+                        <p class="mb-1"><strong>Чат:</strong> ${chatName}</p>
+                        <p class="mb-1"><strong>Сообщение:</strong> ${message}</p>
+                        <p class="mb-1"><strong>Ошибка:</strong> Не удалось подключиться к серверу</p>
+                        <p class="mb-0"><small class="text-muted">
+                            <i class="fas fa-clock me-1"></i>${new Date().toLocaleTimeString('ru-RU')}
+                        </small></p>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                // Добавляем уведомление в начало контейнера
+                const container = document.getElementById('notificationContainer');
+                const notificationDiv = document.createElement('div');
+                notificationDiv.innerHTML = errorMessage;
+                container.insertBefore(notificationDiv.firstElementChild, container.firstChild);
+                
+                showNotification('Ошибка при отправке тестового сообщения', 'error');
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // Проверка статуса QR кода (только при загрузке страницы)
+        function checkQRStatus() {
+            fetch('/qr')
+            .then(response => response.json())
+            .then(data => {
+                const qrSection = document.getElementById('qrSection');
+                const qrStatus = document.getElementById('qrStatus');
+                const qrCode = document.getElementById('qrCode');
+
+                if (data.authorized) {
+                    // Пользователь авторизован - скрываем QR секцию и показываем уведомление
+                    qrSection.style.display = 'none';
+                    qrStatus.innerHTML = `
+                        <div class="alert alert-success mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            WhatsApp авторизован и готов к работе
+                        </div>
+                    `;
+                    showNotification('WhatsApp авторизован! Можете начинать работу.', 'success');
+                } else {
+                    // Пользователь не авторизован - показываем QR секцию
+                    qrSection.style.display = 'block';
+                    qrStatus.innerHTML = `
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-qrcode me-2"></i>
+                            Отсканируйте QR код для авторизации в WhatsApp
+                        </div>
+                    `;
+                    // Обновляем QR код
+                    qrCode.innerHTML = ''; // Очищаем предыдущий QR код
+                    if (data.qr_code) {
+                        qrCode.innerHTML = `<img src="data:image/png;base64,${data.qr_code}" alt="QR Code" style="max-width: 200px; max-height: 200px;">`;
+                    } else {
+                        qrCode.innerHTML = '<p>Не удалось получить QR код. Пожалуйста, попробуйте позже.</p>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const qrSection = document.getElementById('qrSection');
+                qrSection.style.display = 'block';
+                const qrStatus = document.getElementById('qrStatus');
+                qrStatus.innerHTML = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Не удалось проверить статус авторизации WhatsApp.
+                    </div>
+                `;
+            });
+        }
+
+        // Загрузка текущей задачи
+        function loadCurrentTask() {
+            fetch('/tasks')
+            .then(response => response.json())
+            .then(data => {
+                const currentTaskCard = document.getElementById('currentTaskCard');
+                const currentTaskBody = document.getElementById('currentTaskBody');
+                
+                // Обновляем счетчик активных задач
+                document.getElementById('activeTasks').textContent = data.length;
+                
+                if (data.length > 0) {
+                    const task = data[0]; // У нас только одна задача
+                    currentTaskBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong><i class="fas fa-comments me-2"></i>${task.chat_name}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>${task.interval} мин
+                                    ${task.random_delay > 0 ? `(+${task.random_delay} мин)` : ''}
+                                </small>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-play me-1"></i>${formatDate(task.start_time)}
+                                </small>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-stop me-1"></i>${formatDate(task.end_time)}
+                                </small>
+                            </div>
+                            <div class="col-md-12 mt-2">
+                                <button class="btn btn-sm btn-danger" onclick="stopTask('${task.id}')">
+                                    <i class="fas fa-stop me-1"></i>Остановить
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    currentTaskCard.style.display = 'block';
+                } else {
+                    currentTaskCard.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading current task:', error);
+            });
+        }
+
+        // Переменная для хранения интервала обновления
+        let updateInterval;
+        
+        // Функция для установки интервала обновления в зависимости от наличия задач
+        function setUpdateInterval() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            // Проверяем, есть ли активные задачи
+            fetch('/tasks')
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    // Если есть активные задачи - обновляем каждые 5 секунд
+                    updateInterval = setInterval(loadCurrentTask, 5000);
+                } else {
+                    // Если нет активных задач - обновляем каждые 30 секунд
+                    updateInterval = setInterval(loadCurrentTask, 30000);
+                }
+            })
+            .catch(() => {
+                // В случае ошибки используем стандартный интервал
+                updateInterval = setInterval(loadCurrentTask, 10000);
+            });
+        }
+        
+        // Устанавливаем начальный интервал
+        setUpdateInterval();
+        
+        // Переустанавливаем интервал каждые 2 минуты для адаптации
+        setInterval(setUpdateInterval, 120000);
+    </script>
+</body>
+</html>

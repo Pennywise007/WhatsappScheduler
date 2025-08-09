@@ -1,0 +1,45 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Output of the go build command
+bin/
+# Windows specific binary
+whatsapp-scheduler.exe
+# Unix specific binary
+whatsapp-scheduler.exe
+
+# Database files
+whatsmeow.db
+
+# Logs and test output
+*.log
+*.out
+*.test
+
+# Vendor directory (if you use vendoring)
+vendor/
+
+# Go module cache
+/pkg/mod/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment variables file
+.env
+
+# Test cache
+testcache/
+
+# Build directories
+_build/
