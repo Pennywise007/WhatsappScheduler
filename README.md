@@ -26,18 +26,12 @@ Automated WhatsApp message scheduling with configurable intervals and random del
 
 ### Quick Start
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd whatsapp-scheduler
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 go mod tidy
 ```
 
-3. Build the application:
+2. Build the application:
 ```bash
 # For Windows preinstall gcc from here https://winlibs.com/ and run
 .\build-windows.ps1
@@ -46,7 +40,9 @@ go mod tidy
 ./build.sh
 ```
 
-4. The application will automatically open in your browser at: `http://localhost:8080`
+3. Run the application
+
+3. The application will automatically open in your browser at: `http://localhost:8080`
 
 ## Usage
 
@@ -204,7 +200,6 @@ go get -u ./...
 Key dependencies:
 - `github.com/gin-gonic/gin` - Web framework
 - `go.mau.fi/whatsmeow` - WhatsApp Web API client
-- `github.com/mattn/go-sqlite3` - SQLite database driver
 - `github.com/sirupsen/logrus` - Structured logging
 - `github.com/mdp/qrterminal/v3` - QR code terminal display
 
