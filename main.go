@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,10 @@ import (
 	waTypes "go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
+
+	// not using this package directly, but it's required for
+	// the whatsmeow library to work with SQLite3
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Scheduler struct {
@@ -137,9 +142,7 @@ func main() {
 
 	// Настройка Gin
 	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
-
-	// Настройка логирования Gin
+	r := gin.New()
 	r.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		// Логируем только ошибки и важные запросы, исключаем /tasks
 		if param.StatusCode >= 400 || (param.Path != "/tasks" && param.Method != "GET") {
@@ -153,10 +156,10 @@ func main() {
 			)
 		}
 		return ""
-	}))
+	}), gin.Recovery())
 
 	// Загрузка HTML шаблонов
-	r.LoadHTMLGlob("ui_templates/*")
+	r.LoadHTMLGlob("ui/*")
 	//r.Static("/static", "./static")
 
 	// Маршруты
@@ -503,59 +506,25 @@ func (s *Scheduler) StopTask(id string) bool {
 func (s *Scheduler) runTask(task *ScheduledTask) {
 	logger.Infof("🔄 Запуск планировщика для задачи %s (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
 
-	if time.Now().After(task.EndTime) {
-		logger.Infof("⏰ Задача %s уже завершена по времени до первой отправки (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
+	defer func() {
 		s.mutex.Lock()
 		delete(s.tasks, task.ID)
 		s.mutex.Unlock()
+	}()
+
+	if time.Now().After(task.EndTime) {
+		logger.Infof("⏰ Задача %s уже завершена по времени до первой отправки (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
 		return
 	}
 
 	if task.Interval <= 0 {
 		logger.Errorf("❌ Неверный интервал для задачи %s(не может быть меньше 1 минуты) (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
-		s.mutex.Lock()
-		delete(s.tasks, task.ID)
-		s.mutex.Unlock()
 		return
 	}
 
 	if task.RandomDelay > task.Interval {
 		logger.Errorf("❌ Случайная задержка должна быть меньше интервала для задачи %s (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
-		s.mutex.Lock()
-		delete(s.tasks, task.ID)
-		s.mutex.Unlock()
 		return
-	}
-
-	// Функция отправки сообщения с случайной задержкой
-	sendMessageWithDelay := func() {
-		// Добавляем случайную задержку
-		randomDelayMinutes := rand.Intn(task.RandomDelay + 1) // от 0 до RandomDelay включительно
-		if randomDelayMinutes > 0 {
-			randomDelay := time.Duration(randomDelayMinutes) * time.Minute
-			logger.Infof("🎲 Случайная задержка для задачи %s: %d минут | UI: http://localhost:8080", task.ID, randomDelayMinutes)
-
-			select {
-			case <-task.stopChan:
-				return
-			case <-time.After(randomDelay):
-				// Задержка завершена, проверяем время еще раз
-				if time.Now().After(task.EndTime) {
-					logger.Infof("⏰ Задача %s завершена по времени во время случайной задержки (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
-					s.mutex.Lock()
-					delete(s.tasks, task.ID)
-					s.mutex.Unlock()
-					return
-				}
-			}
-		}
-
-		logger.Infof("📤 Отправка сообщения по задаче %s в чат '%s' | UI: http://localhost:8080", task.ID, task.ChatName)
-		if err := s.sendMessage(task.ChatName, task.Message); err != nil {
-			logger.Errorf("❌ Ошибка отправки сообщения по задаче %s: %v | UI: http://localhost:8080", task.ID, err)
-		} else {
-			logger.Infof("✅ Сообщение по задаче %s отправлено успешно | UI: http://localhost:8080", task.ID)
-		}
 	}
 
 	// Проверяем корректность сравнения времени начала задачи и текущего времени.
@@ -576,41 +545,107 @@ func (s *Scheduler) runTask(task *ScheduledTask) {
 			nextSendTime.Format("15:04:05 02.01.2006"))
 	}
 
-	defer func() {
-		s.mutex.Lock()
-		delete(s.tasks, task.ID)
-		s.mutex.Unlock()
-	}()
-
 	// Основной цикл для повторных отправок
 	for {
-		if nextSendTime.After(task.EndTime) {
-			logger.Infof("⏰ Задача %s завершена по времени (чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
+		// Добавляем случайную задержку
+		randomDelaySeconds := 0
+		if task.RandomDelay > 0 {
+			randomDelaySeconds = rand.Intn(task.RandomDelay * 60 /* minutes to seconds*/)
+		}
+		nextMessageTime := nextSendTime.Add(time.Duration(randomDelaySeconds) * time.Second)
+
+		if nextMessageTime.After(task.EndTime) {
+			logger.Infof("⏰ Задача %s завершена по времени (Чат: %s) | UI: http://localhost:8080", task.ID, task.ChatName)
 			return
 		}
 
 		// Логируем время до следующей отправки
-		timeUntilSend := nextSendTime.Sub(now)
-		if timeUntilSend > 0 {
-			minutesUntilSend := int(timeUntilSend.Minutes())
-			if minutesUntilSend > 0 {
-				logger.Infof("⏳ До отправки сообщения: %d минут (%s) | UI: http://localhost:8080",
-					minutesUntilSend, nextSendTime.Format("15:04:05 02.01.2006"))
-			} else {
-				logger.Infof("⏳ До отправки сообщения: %d секунд | UI: http://localhost:8080",
-					int(timeUntilSend.Seconds()))
-			}
-		}
+		timeUntilSend := time.Until(nextMessageTime)
+		logger.Infof("⏳ До отправки сообщения: %.2f минут (%s) | UI: http://localhost:8080",
+			timeUntilSend.Minutes(), nextMessageTime.Local().Format("15:04:05 02.01.2006"))
 
 		select {
 		case <-task.stopChan:
 			logger.Infof("🛑 Планировщик остановлен для задачи %s | UI: http://localhost:8080", task.ID)
 			return
 		case <-time.After(timeUntilSend):
-			sendMessageWithDelay()
+			logger.Infof("📤 Отправка сообщения по задаче %s в чат '%s' | UI: http://localhost:8080", task.ID, task.ChatName)
+			if err := s.sendMessage(task.ChatName, task.Message); err != nil {
+				logger.Errorf("❌ Ошибка отправки сообщения по задаче %s: %v | UI: http://localhost:8080", task.ID, err)
+			} else {
+				logger.Infof("✅ Сообщение по задаче %s отправлено успешно | UI: http://localhost:8080", task.ID)
+			}
+
 			nextSendTime = nextSendTime.Add(time.Duration(task.Interval) * time.Minute)
 		}
 	}
+}
+
+func (s *Scheduler) FindChatJIT(chatName string) waTypes.JID {
+	logger.Debugf("Ищем в контактах: %s", chatName)
+
+	nameMatches := []waTypes.JID{}
+
+	contacts, err := s.client.Store.Contacts.GetAllContacts(context.Background())
+	if err == nil {
+		// Ищем контакт по имени или JID
+		for jid, contact := range contacts {
+			if jid.String() == chatName {
+				logger.Debugf("Найден контакт по JID: %s", jid)
+				return jid
+			}
+			if contact.FullName == chatName {
+				logger.Debugf("Найден контакт по имени '%s': %s", contact.FullName, jid)
+				nameMatches = append(nameMatches, jid)
+			}
+		}
+	} else {
+		logger.Errorf("Ошибка получения контактов: %v", err)
+	}
+
+	// Ищем группу по имени или JID
+	groups, err := s.client.GetJoinedGroups()
+	if err == nil {
+		for _, group := range groups {
+			// Можно добавить поиск по JID группы (если пользователь ввел JID)
+			if group.JID.String() == chatName {
+				logger.Debugf("Найдена группа по JID: %s", group.JID)
+				return group.JID
+			}
+			if group.Name == chatName {
+				logger.Debugf("Найдена группа по имени '%s': %s", group.Name, group.JID)
+				nameMatches = append(nameMatches, group.JID)
+			}
+		}
+	} else {
+		logger.Warnf("Ошибка получения групп: %v", err)
+	}
+
+	if len(nameMatches) == 0 {
+		logger.Debugf("Контакты или группы не найдены по имени: %s", chatName)
+		// Пробуем создать JID из введенного текста (только если это похоже на номер телефона)
+		if len(chatName) >= 10 && len(chatName) <= 15 && strings.Map(func(r rune) rune {
+			if r >= '0' && r <= '9' {
+				return r
+			}
+			return -1
+		}, chatName) == chatName {
+			// Только если это чисто цифры (номер телефона)
+			targetJID := waTypes.NewJID(chatName, "s.whatsapp.net")
+			logger.Debugf("Создан JID из номера: %s", targetJID)
+			return targetJID
+		}
+		return waTypes.JID{}
+	}
+
+	if len(nameMatches) > 1 {
+		logger.Debugf("Найдено несколько контактов/групп с заданным именем: %v", nameMatches)
+		slices.SortFunc(nameMatches, func(a, b waTypes.JID) int {
+			return strings.Compare(a.String(), b.String())
+		})
+	}
+
+	return nameMatches[0]
 }
 
 func (s *Scheduler) sendMessage(chatName, message string) error {
@@ -639,50 +674,7 @@ func (s *Scheduler) sendMessage(chatName, message string) error {
 	}
 
 	logger.Infof("Попытка отправки сообщения в чат '%s': %s", chatName, message)
-
-	var targetJID waTypes.JID
-
-	// Сначала пробуем создать JID из введенного текста (только если это похоже на номер телефона)
-	if len(chatName) >= 10 && len(chatName) <= 15 && strings.Map(func(r rune) rune {
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		return -1
-	}, chatName) == chatName {
-		// Только если это чисто цифры (номер телефона)
-		targetJID = waTypes.NewJID(chatName, "s.whatsapp.net")
-		logger.Debugf("Создан JID из номера: %s", targetJID)
-	}
-
-	// Если JID не создан, ищем в контактах
-	if targetJID.IsEmpty() {
-		logger.Debugf("JID не создан, ищем в контактах: %s", chatName)
-		contacts, err := s.client.Store.Contacts.GetAllContacts(context.Background())
-		if err != nil {
-			return fmt.Errorf("ошибка получения контактов: %v", err)
-		}
-
-		// Ищем контакт по имени
-		for jid, contact := range contacts {
-			if contact.FullName != "" && contact.FullName == chatName {
-				targetJID = jid
-				logger.Debugf("Найден контакт по имени '%s': %s", contact.FullName, jid)
-				break
-			}
-		}
-
-		// Если контакт не найден по имени, пробуем найти по номеру телефона
-		if targetJID.IsEmpty() {
-			for jid := range contacts {
-				if jid.String() == chatName {
-					targetJID = jid
-					logger.Debugf("Найден контакт по номеру: %s", jid)
-					break
-				}
-			}
-		}
-	}
-
+	targetJID := s.FindChatJIT(chatName)
 	if targetJID.IsEmpty() {
 		return fmt.Errorf("чат '%s' не найден. Убедитесь, что указали правильное имя чата или номер телефона", chatName)
 	}

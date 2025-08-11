@@ -103,9 +103,9 @@ whatsapp-scheduler/
 ├── main.go              # Main application file
 ├── go.mod               # Go dependencies
 ├── go.sum               # Dependency hashes
-├── ui_templates/           # HTML templates
+├── ui/                  # UI with HTML templates
 │   └── index.html       # Main web interface
-└── README.md           # Documentation
+└── README.md            # Documentation
 ```
 
 ## API Endpoints
@@ -201,6 +201,7 @@ Key dependencies:
 - `github.com/gin-gonic/gin` - Web framework
 - `go.mau.fi/whatsmeow` - WhatsApp Web API client
 - `github.com/sirupsen/logrus` - Structured logging
+- `github.com/mattn/go-sqlite3` - SQLite database driver
 - `github.com/mdp/qrterminal/v3` - QR code terminal display
 
 ## License
